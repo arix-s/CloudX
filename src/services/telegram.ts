@@ -13,14 +13,20 @@ export interface TelegramBotInfo {
   username: string;
 }
 
-const CONFIG_FILE = path.resolve(process.cwd(), 'data', 'telegram_config.json');
+function getConfigFile(): string {
+  if (process.env.VERCEL) {
+    return '/tmp/data/telegram_config.json';
+  }
+  return path.resolve(process.cwd(), 'data', 'telegram_config.json');
+}
 
 let runtimeConfig: { token?: string; chatId?: string } = {};
 
 function loadRuntimeConfig() {
   try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
+    const configFile = getConfigFile();
+    if (fs.existsSync(configFile)) {
+      const raw = fs.readFileSync(configFile, 'utf-8');
       runtimeConfig = JSON.parse(raw);
     }
   } catch (e) {
@@ -42,11 +48,12 @@ export function saveTelegramCredentials(token: string, chatId: string) {
   runtimeConfig.token = token.trim();
   runtimeConfig.chatId = formatChatId(chatId);
 
-  const dataDir = path.dirname(CONFIG_FILE);
+  const configFile = getConfigFile();
+  const dataDir = path.dirname(configFile);
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(runtimeConfig, null, 2), 'utf-8');
+  fs.writeFileSync(configFile, JSON.stringify(runtimeConfig, null, 2), 'utf-8');
 }
 
 export function getTelegramCredentials() {

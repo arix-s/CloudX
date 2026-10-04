@@ -14,8 +14,17 @@ export interface StoredFile {
   created_at: string;
 }
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
-const DB_FILE = path.resolve(DATA_DIR, 'db.json');
+function getDataDir(): string {
+  if (process.env.VERCEL) {
+    return '/tmp/data';
+  }
+  return path.resolve(process.cwd(), 'data');
+}
+
+function getDbFilePath(): string {
+  const dir = getDataDir();
+  return path.resolve(dir, 'db.json');
+}
 
 let pgPool: pg.Pool | null = null;
 
@@ -34,15 +43,17 @@ function getPgPool(): pg.Pool | null {
 
 // File system fallback helper
 function ensureLocalDbFile(): StoredFile[] {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dir = getDataDir();
+  const dbFile = getDbFilePath();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify([]), 'utf-8');
+  if (!fs.existsSync(dbFile)) {
+    fs.writeFileSync(dbFile, JSON.stringify([]), 'utf-8');
     return [];
   }
   try {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
+    const raw = fs.readFileSync(dbFile, 'utf-8');
     return JSON.parse(raw);
   } catch (err) {
     console.error('Error reading local db file:', err);
@@ -51,10 +62,12 @@ function ensureLocalDbFile(): StoredFile[] {
 }
 
 function saveLocalDbFile(files: StoredFile[]) {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dir = getDataDir();
+  const dbFile = getDbFilePath();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(DB_FILE, JSON.stringify(files, null, 2), 'utf-8');
+  fs.writeFileSync(dbFile, JSON.stringify(files, null, 2), 'utf-8');
 }
 
 export async function initDb() {
@@ -80,7 +93,7 @@ export async function initDb() {
     }
   } else {
     ensureLocalDbFile();
-    console.log('Local JSON database initialized at:', DB_FILE);
+    console.log('Local JSON database initialized at:', getDbFilePath());
   }
 }
 
